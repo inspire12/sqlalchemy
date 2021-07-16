@@ -614,52 +614,84 @@ class CompileTest(fixtures.TestBase, AssertsCompiledSQL):
             select(tbl), "SELECT [foo.dbo].test.id FROM [foo.dbo].test"
         )
 
-    def test_force_schema_quoted_name_w_dot_case_sensitive(self):
+    @testing.combinations((True,), (False,), argnames="use_schema_translate")
+    def test_force_schema_quoted_name_w_dot_case_sensitive(
+        self, use_schema_translate
+    ):
         metadata = MetaData()
         tbl = Table(
             "test",
             metadata,
             Column("id", Integer, primary_key=True),
-            schema=quoted_name("Foo.dbo", True),
+            schema=quoted_name("Foo.dbo", True)
+            if not use_schema_translate
+            else None,
         )
         self.assert_compile(
-            select(tbl), "SELECT [Foo.dbo].test.id FROM [Foo.dbo].test"
+            select(tbl),
+            "SELECT [Foo.dbo].test.id FROM [Foo.dbo].test",
+            schema_translate_map={None: quoted_name("Foo.dbo", True)}
+            if use_schema_translate
+            else None,
+            render_schema_translate=True if use_schema_translate else False,
         )
 
-    def test_force_schema_quoted_w_dot_case_sensitive(self):
+    @testing.combinations((True,), (False,), argnames="use_schema_translate")
+    def test_force_schema_quoted_w_dot_case_sensitive(
+        self, use_schema_translate
+    ):
         metadata = MetaData()
         tbl = Table(
             "test",
             metadata,
             Column("id", Integer, primary_key=True),
-            schema="[Foo.dbo]",
+            schema="[Foo.dbo]" if not use_schema_translate else None,
         )
         self.assert_compile(
-            select(tbl), "SELECT [Foo.dbo].test.id FROM [Foo.dbo].test"
+            select(tbl),
+            "SELECT [Foo.dbo].test.id FROM [Foo.dbo].test",
+            schema_translate_map={None: "[Foo.dbo]"}
+            if use_schema_translate
+            else None,
+            render_schema_translate=True if use_schema_translate else False,
         )
 
-    def test_schema_autosplit_w_dot_case_insensitive(self):
+    @testing.combinations((True,), (False,), argnames="use_schema_translate")
+    def test_schema_autosplit_w_dot_case_insensitive(
+        self, use_schema_translate
+    ):
         metadata = MetaData()
         tbl = Table(
             "test",
             metadata,
             Column("id", Integer, primary_key=True),
-            schema="foo.dbo",
+            schema="foo.dbo" if not use_schema_translate else None,
         )
         self.assert_compile(
-            select(tbl), "SELECT foo.dbo.test.id FROM foo.dbo.test"
+            select(tbl),
+            "SELECT foo.dbo.test.id FROM foo.dbo.test",
+            schema_translate_map={None: "foo.dbo"}
+            if use_schema_translate
+            else None,
+            render_schema_translate=True if use_schema_translate else False,
         )
 
-    def test_schema_autosplit_w_dot_case_sensitive(self):
+    @testing.combinations((True,), (False,), argnames="use_schema_translate")
+    def test_schema_autosplit_w_dot_case_sensitive(self, use_schema_translate):
         metadata = MetaData()
         tbl = Table(
             "test",
             metadata,
             Column("id", Integer, primary_key=True),
-            schema="Foo.dbo",
+            schema="Foo.dbo" if not use_schema_translate else None,
         )
         self.assert_compile(
-            select(tbl), "SELECT [Foo].dbo.test.id FROM [Foo].dbo.test"
+            select(tbl),
+            "SELECT [Foo].dbo.test.id FROM [Foo].dbo.test",
+            schema_translate_map={None: "Foo.dbo"}
+            if use_schema_translate
+            else None,
+            render_schema_translate=True if use_schema_translate else False,
         )
 
     def test_delete_schema(self):
@@ -773,7 +805,7 @@ class CompileTest(fixtures.TestBase, AssertsCompiledSQL):
                 t2.c.col2.in_(["t2col2r2", "t2col2r3"]),
             ),
         )
-        u = union(s1, s2, order_by=["col3", "col4"])
+        u = union(s1, s2).order_by("col3", "col4")
         self.assert_compile(
             u,
             "SELECT t1.col3 AS col3, t1.col4 AS col4 "

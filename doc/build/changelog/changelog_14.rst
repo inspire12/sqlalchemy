@@ -14,8 +14,271 @@ This document details individual issue-level changes made throughout
 
 
 .. changelog::
-    :version: 1.4.20
+    :version: 1.4.22
     :include_notes_from: unreleased_14
+
+.. changelog::
+    :version: 1.4.21
+    :released: July 14, 2021
+
+    .. change::
+        :tags: usecase, orm
+        :tickets: 6708
+
+        Modified the approach used for history tracking of scalar object
+        relationships that are not many-to-one, i.e. one-to-one relationships that
+        would otherwise be one-to-many. When replacing a one-to-one value, the
+        "old" value that would be replaced is no longer loaded immediately, and is
+        instead handled during the flush process. This eliminates an historically
+        troublesome lazy load that otherwise often occurs when assigning to a
+        one-to-one attribute, and is particularly troublesome when using
+        "lazy='raise'" as well as asyncio use cases.
+
+        This change does cause a behavioral change within the
+        :meth:`_orm.AttributeEvents.set` event, which is nonetheless currently
+        documented, which is that the event applied to such a one-to-one attribute
+        will no longer receive the "old" parameter if it is unloaded and the
+        :paramref:`_orm.relationship.active_history` flag is not set. As is
+        documented in :meth:`_orm.AttributeEvents.set`, if the event handler needs
+        to receive the "old" value when the event fires off, the active_history
+        flag must be established either with the event listener or with the
+        relationship. This is already the behavior with other kinds of attributes
+        such as many-to-one and column value references.
+
+        The change additionally will defer updating a backref on the "old" value
+        in the less common case that the "old" value is locally present in the
+        session, but isn't loaded on the relationship in question, until the
+        next flush occurs.  If this causes an issue, again the normal
+        :paramref:`_orm.relationship.active_history` flag can be set to ``True``
+        on the relationship.
+
+    .. change::
+        :tags: usecase, sql
+        :tickets: 6752
+
+        Added new method :meth:`_sql.HasCTE.add_cte` to each of the
+        :func:`_sql.select`, :func:`_sql.insert`, :func:`_sql.update` and
+        :func:`_sql.delete` constructs. This method will add the given
+        :class:`_sql.CTE` as an "independent" CTE of the statement, meaning it
+        renders in the WITH clause above the statement unconditionally even if it
+        is not otherwise referenced in the primary statement. This is a popular use
+        case on the PostgreSQL database where a CTE is used for a DML statement
+        that runs against database rows independently of the primary statement.
+
+    .. change::
+        :tags: bug, postgresql
+        :tickets: 6755
+
+        Fixed issue in :meth:`_postgresql.Insert.on_conflict_do_nothing` and
+        :meth:`_postgresql.Insert.on_conflict_do_update` where the name of a unique
+        constraint passed as the ``constraint`` parameter would not be properly
+        truncated for length if it were based on a naming convention that generated
+        a too-long name for the PostgreSQL max identifier length of 63 characters,
+        in the same way which occurs within a CREATE TABLE statement.
+
+    .. change::
+        :tags: bug, sql
+        :tickets: 6710
+
+        Fixed issue in CTE constructs where a recursive CTE that referred to a
+        SELECT that has duplicate column names, which are typically deduplicated
+        using labeling logic in 1.4, would fail to refer to the deduplicated label
+        name correctly within the WITH clause.
+
+    .. change::
+        :tags: bug, regression, mssql
+        :tickets: 6697
+
+        Fixed regression where the special dotted-schema name handling for the SQL
+        Server dialect would not function correctly if the dotted schema name were
+        used within the ``schema_translate_map`` feature.
+
+    .. change::
+        :tags: orm, regression
+        :tickets: 6718
+
+        Fixed ORM regression where ad-hoc label names generated for hybrid
+        properties and potentially other similar types of ORM-enabled expressions
+        would usually be propagated outwards through subqueries, allowing the name
+        to be retained in the final keys of the result set even when selecting from
+        subqueries. Additional state is now tracked in this case that isn't lost
+        when a hybrid is selected out of a Core select / subquery.
+
+
+    .. change::
+        :tags: bug, postgresql
+        :tickets: 6739
+
+        Fixed issue where the PostgreSQL ``ENUM`` datatype as embedded in the
+        ``ARRAY`` datatype would fail to emit correctly in create/drop when the
+        ``schema_translate_map`` feature were also in use. Additionally repairs a
+        related issue where the same ``schema_translate_map`` feature would not
+        work for the ``ENUM`` datatype in combination with a ``CAST``, that's also
+        intrinsic to how the ``ARRAY(ENUM)`` combination works on the PostgreSQL
+        dialect.
+
+
+    .. change::
+        :tags: bug, sql, regression
+        :tickets: 6735
+
+        Fixed regression where the :func:`_sql.tablesample` construct would fail to
+        be executable when constructed given a floating-point sampling value not
+        embedded within a SQL function.
+
+    .. change::
+        :tags: bug, postgresql
+        :tickets: 6696
+
+        Fixed issue in :meth:`_postgresql.Insert.on_conflict_do_nothing` and
+        :meth:`_postgresql.Insert.on_conflict_do_update` where the name of a unique
+        constraint passed as the ``constraint`` parameter would not be properly
+        quoted if it contained characters which required quoting.
+
+
+    .. change::
+        :tags: bug, regression, orm
+        :tickets: 6698
+
+        Fixed regression caused in 1.4.19 due to :ticket:`6503` and related
+        involving :meth:`_orm.Query.with_entities` where the new structure used
+        would be inappropriately transferred to an enclosing :class:`_orm.Query`
+        when making use of set operations such as :meth:`_orm.Query.union`, causing
+        the JOIN instructions within to be applied to the outside query as well.
+
+    .. change::
+        :tags: bug, orm, regression
+        :tickets: 6762
+
+        Fixed regression which appeared in version 1.4.3 due to :ticket:`6060`
+        where rules that limit ORM adaptation of derived selectables interfered
+        with other ORM-adaptation based cases, in this case when applying
+        adaptations for a :func:`_orm.with_polymorphic` against a mapping which
+        uses a :func:`_orm.column_property` which in turn makes use of a scalar
+        select that includes a :func:`_orm.aliased` object of the mapped table.
+
+.. changelog::
+    :version: 1.4.20
+    :released: June 28, 2021
+
+    .. change::
+        :tags: bug, regression, orm
+        :tickets: 6680
+
+        Fixed regression in ORM regarding an internal reconstitution step for the
+        :func:`_orm.with_polymorphic` construct, when the user-facing object is
+        garbage collected as the query is processed. The reconstitution was not
+        ensuring the sub-entities for the "polymorphic" case were handled, leading
+        to an ``AttributeError``.
+
+    .. change::
+        :tags: usecase, sql
+        :tickets: 6646
+
+        Add a impl parameter to :class:`_types.PickleType` constructor, allowing
+        any arbitary type to be used in place of the default implementation of
+        :class:`_types.LargeBinary`. Pull request courtesy jason3gb.
+
+    .. change::
+        :tags: bug, engine
+        :tickets: 5348
+
+        Fixed an issue in the C extension for the :class:`_result.Row` class which
+        could lead to a memory leak in the unlikely case of a :class:`_result.Row`
+        object which referred to an ORM object that then was mutated to refer back
+        to the ``Row`` itself, creating a cycle. The Python C APIs for tracking GC
+        cycles has been added to the native :class:`_result.Row` implementation to
+        accommodate for this case.
+
+
+    .. change::
+        :tags: bug, engine
+        :tickets: 6665
+
+        Fixed old issue where a :func:`_sql.select()` made against the token "*",
+        which then yielded exactly one column, would fail to correctly organize the
+        ``cursor.description`` column name into the keys of the result object.
+
+
+
+    .. change::
+        :tags: usecase, mysql
+        :tickets: 6659
+
+        Made a small adjustment in the table reflection feature of the MySQL
+        dialect to accommodate for alternate MySQL-oriented databases such as TiDB
+        which include their own "comment" directives at the end of a constraint
+        directive within "CREATE TABLE" where the format doesn't have the
+        additional space character after the comment, in this case the TiDB
+        "clustered index" feature. Pull request courtesy Daniël van Eeden.
+
+    .. change::
+        :tags: bug, schema
+        :tickets: 6685
+
+        Fixed issue where passing ``None`` for the value of
+        :paramref:`_schema.Table.prefixes` would not store an empty list, but
+        rather the constant ``None``, which may be unexpected by third party
+        dialects. The issue is revealed by a usage in recent versions of Alembic
+        that are passing ``None`` for this value. Pull request courtesy Kai
+        Mueller.
+
+    .. change::
+        :tags: bug, regression, ext
+        :tickets: 6679
+
+        Fixed regression in :mod:`sqlalchemy.ext.automap` extension such that the
+        use case of creating an explicit mapped class to a table that is also the
+        :paramref:`_orm.relationship.secondary` element of a
+        :func:`_orm.relationship` that automap will be generating would emit the
+        "overlaps" warnings introduced in 1.4 and discussed at :ref:`error_qzyx`.
+        While generating this case from automap is still subject to the same
+        caveats that the "overlaps" warning refers towards, as automap is intended
+        for more ad-hoc use cases, the condition which produces the warning is
+        disabled when a many-to-many relationship with this particular pattern is
+        generated.
+
+
+
+    .. change::
+        :tags: bug, regression, orm
+        :tickets: 6678
+
+        Adjusted :meth:`_orm.Query.union` and similar set operations to be
+        correctly compatible with the new capabilities just added in
+        :ticket:`6661`, with SQLAlchemy 1.4.19, such that the SELECT statements
+        rendered as elements of the UNION or other set operation will include
+        directly mapped columns that are mapped as deferred; this both fixes a
+        regression involving unions with multiple levels of nesting that would
+        produce a column mismatch, and also allows the :func:`_orm.undefer` option
+        to be used at the top level of such a :class:`_orm.Query` without having to
+        apply the option to each of the elements within the UNION.
+
+    .. change::
+        :tags: bug, sql, orm
+        :tickets: 6668
+
+        Fixed the class hierarchy for the :class:`_schema.Sequence` and the more
+        general :class:`_schema.DefaultGenerator` base, as these are "executable"
+        as statements they need to include :class:`_sql.Executable` in their
+        hierarchy, not just :class:`_roles.StatementRole` as was applied
+        arbitrarily to :class:`_schema.Sequence` previously. The fix allows
+        :class:`_schema.Sequence` to work in all ``.execute()`` methods including
+        with :meth:`_orm.Session.execute` which was not working in the case that a
+        :meth:`_orm.SessionEvents.do_orm_execute` handler was also established.
+
+
+    .. change::
+        :tags: bug, orm
+        :tickets: 6538
+
+        Adjusted the check in the mapper for a callable object that is used as a
+        ``@validates`` validator function or a ``@reconstructor`` reconstruction
+        function, to check for "callable" more liberally such as to accommodate
+        objects based on fundamental attributes like ``__func__`` and
+        ``__call___``, rather than testing for ``MethodType`` / ``FunctionType``,
+        allowing things like cython functions to work properly. Pull request
+        courtesy Miłosz Stypiński.
 
 .. changelog::
     :version: 1.4.19

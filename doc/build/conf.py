@@ -87,14 +87,14 @@ changelog_inner_tag_sort = [
 
 
 # how to render changelog links
-changelog_render_ticket = "http://www.sqlalchemy.org/trac/ticket/%s"
+changelog_render_ticket = "https://www.sqlalchemy.org/trac/ticket/%s"
 
 changelog_render_pullreq = {
     "default": "https://github.com/sqlalchemy/sqlalchemy/pull/%s",
     "github": "https://github.com/sqlalchemy/sqlalchemy/pull/%s",
 }
 
-changelog_render_changeset = "http://www.sqlalchemy.org/trac/changeset/%s"
+changelog_render_changeset = "https://www.sqlalchemy.org/trac/changeset/%s"
 
 exclude_patterns = ["build", "**/unreleased*/*", "*_include.rst"]
 
@@ -159,6 +159,7 @@ zzzeeksphinx_module_prefixes = {
     "_query": "sqlalchemy.orm",
     "_ormevent": "sqlalchemy.orm.event",
     "_ormexc": "sqlalchemy.orm.exc",
+    "_roles": "sqlalchemy.sql.roles",
     "_baked": "sqlalchemy.ext.baked",
     "_horizontal": "sqlalchemy.ext.horizontal_shard",
     "_associationproxy": "sqlalchemy.ext.associationproxy",
@@ -195,11 +196,11 @@ copyright = u"2007-2021, the SQLAlchemy authors and contributors"  # noqa
 # The short X.Y version.
 version = "1.4"
 # The full version, including alpha/beta/rc tags.
-release = "1.4.19"
+release = "1.4.21"
 
-release_date = "June 22, 2021"
+release_date = "July 14, 2021"
 
-site_base = os.environ.get("RTD_SITE_BASE", "http://www.sqlalchemy.org")
+site_base = os.environ.get("RTD_SITE_BASE", "https://www.sqlalchemy.org")
 site_adapter_template = "docs_adapter.mako"
 site_adapter_py = "docs_adapter.py"
 

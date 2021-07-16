@@ -14,6 +14,7 @@ from sqlalchemy import String
 from sqlalchemy import testing
 from sqlalchemy import Unicode
 from sqlalchemy import util
+from sqlalchemy.engine import result
 from sqlalchemy.orm import aliased
 from sqlalchemy.orm import clear_mappers
 from sqlalchemy.orm import configure_mappers
@@ -290,6 +291,24 @@ class MemUsageTest(EnsureZeroed):
         @profile_memory()
         def go():
             to_unicode_processor_factory("utf8")
+
+        go()
+
+    @testing.requires.cextensions
+    def test_cycles_in_row(self):
+
+        tup = result.result_tuple(["a", "b", "c"])
+
+        @profile_memory()
+        def go():
+            obj = {"foo": {}}
+            obj["foo"]["bar"] = obj
+
+            row = tup([1, 2, obj])
+
+            obj["foo"]["row"] = row
+
+            del row
 
         go()
 
@@ -1037,7 +1056,7 @@ class MemUsageWBackendTest(EnsureZeroed):
 
     # fails on newer versions of pysqlite due to unusual memory behavior
     # in pysqlite itself. background at:
-    # http://thread.gmane.org/gmane.comp.python.db.pysqlite.user/2290
+    # https://thread.gmane.org/gmane.comp.python.db.pysqlite.user/2290
 
     @testing.crashes("mysql+cymysql", "blocking")
     def test_join_cache_deprecated_coercion(self):
